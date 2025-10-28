@@ -57,8 +57,11 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
 
     public AvroJsonSchemafulRecordConverter(boolean unionUnwrapEnabled) {
         this.unionUnwrapEnabled = unionUnwrapEnabled;
+        registerStandardConverters();
+        registerLogicalConverters();
+    }
 
-        //standard types
+    private void registerStandardConverters() {
         registerSinkFieldConverter(new BooleanFieldConverter());
         registerSinkFieldConverter(new Int8FieldConverter());
         registerSinkFieldConverter(new Int16FieldConverter());
@@ -68,8 +71,9 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
         registerSinkFieldConverter(new Float64FieldConverter());
         registerSinkFieldConverter(new StringFieldConverter());
         registerSinkFieldConverter(new BytesFieldConverter());
+    }
 
-        //logical types
+    private void registerLogicalConverters() {
         registerSinkFieldLogicalConverter(new DateFieldConverter());
         registerSinkFieldLogicalConverter(new TimeFieldConverter());
         registerSinkFieldLogicalConverter(new TimestampFieldConverter());
