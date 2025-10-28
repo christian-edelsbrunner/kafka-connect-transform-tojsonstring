@@ -81,6 +81,10 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
         if (schema == null || value == null) {
             throw new DataException("error: schema and/or value was null for AVRO conversion");
         }
+
+        logger.trace("convert() entry: schema.name='{}' schema.type='{}' value.class='{}'",
+                     schema.name(), schema.type(), value.getClass().getSimpleName());
+
         return toBsonDoc(schema, value);
     }
 
@@ -148,9 +152,11 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
     }
 
     private void handleMapField(BsonDocument doc, Map m, Field field) {
-        logger.trace("handling complex type 'map'");
+        logger.trace("handling map field='{}' valueSchema.type='{}'",
+                     field.name(), field.schema().valueSchema().type());
+
         if (m == null) {
-            logger.trace("no field in struct -> adding null");
+            logger.trace("  field='{}' has null map", field.name());
             doc.put(field.name(), BsonNull.VALUE);
             return;
         }
@@ -160,10 +166,11 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
     }
 
     private BsonValue handleArrayField(List list, Field field) {
-        logger.trace("handling complex type 'array' of types '{}'",
-                     field.schema().valueSchema().type());
+        logger.trace("handling array field='{}' valueSchema.type='{}'",
+                     field.name(), field.schema().valueSchema().type());
+
         if (list == null) {
-            logger.trace("no array -> adding null");
+            logger.trace("  array is null");
             return BsonNull.VALUE;
         }
 
@@ -179,17 +186,25 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
     }
 
     private void handleStructField(BsonDocument doc, Struct struct, Field field) {
-        logger.trace("handling complex type 'struct'");
+        logger.trace("handling struct field='{}' schema.name='{}' schema.type='{}'",
+                     field.name(), field.schema().name(), field.schema().type());
+
         if (struct == null) {
-            logger.trace("no field in struct -> adding null");
+            logger.trace("  field='{}' has null struct value", field.name());
             doc.put(field.name(), BsonNull.VALUE);
             return;
         }
 
-        logger.trace(struct.toString());
-        if (unionUnwrapEnabled && isUnionStruct(field.schema())) {
+        logger.trace("  struct value: {}", struct.toString());
+
+        boolean isUnion = unionUnwrapEnabled && isUnionStruct(field.schema());
+        logger.trace("  isUnionStruct={} unionUnwrapEnabled={} for schema.name='{}'",
+                     isUnion, unionUnwrapEnabled, field.schema().name());
+
+        if (isUnion) {
             unwrapAndPutUnion(doc, struct, field);
         } else {
+            logger.trace("  processing as regular struct with {} fields", field.schema().fields().size());
             doc.put(field.name(), toBsonDoc(field.schema(), struct));
         }
     }
@@ -199,17 +214,35 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
      * Union structs have multiple optional fields (one per branch), but only one should be non-null.
      */
     private void unwrapAndPutUnion(BsonDocument doc, Struct struct, Field field) {
+        logger.trace("unwrapping union field='{}' schema.name='{}'",
+                     field.name(), field.schema().name());
+
+        int nonNullBranches = 0;
+
         for (Field unionBranch : field.schema().fields()) {
             Object branchValue = struct.get(unionBranch);
+            logger.trace("  union branch='{}' type='{}' value.isNull={}",
+                         unionBranch.name(), unionBranch.schema().type(), branchValue == null);
+
             if (branchValue != null) {
+                nonNullBranches++;
+                logger.trace("  selected branch='{}' type='{}' - unwrapping to parent field",
+                             unionBranch.name(), unionBranch.schema().type());
+
                 BsonValue unwrappedValue = convertValue(unionBranch.schema(), branchValue);
                 doc.put(field.name(), unwrappedValue);
-                return; // Only one branch should have a value
+                break; // Only one branch should have a value
             }
         }
 
+        logger.trace("  union unwrapping complete for field='{}', nonNullBranches={}",
+                     field.name(), nonNullBranches);
+
         // If all branches were null, output BsonNull
-        doc.put(field.name(), BsonNull.VALUE);
+        if (!doc.containsKey(field.name())) {
+            logger.trace("  all union branches null for field='{}' - adding BsonNull", field.name());
+            doc.put(field.name(), BsonNull.VALUE);
+        }
     }
 
     /**
@@ -244,7 +277,9 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
      * Converts a struct value, detecting and unwrapping unions if enabled and necessary.
      */
     private BsonValue convertStructValue(Schema schema, Struct struct) {
+
         if (unionUnwrapEnabled && isUnionStruct(schema)) {
+            logger.trace("convertStructValue: detected union struct, unwrapping");
             BsonDocument tempDoc = new BsonDocument();
             Field tempField = new Field("temp", 0, schema);
             unwrapAndPutUnion(tempDoc, struct, tempField);
@@ -258,12 +293,20 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
      * Converts a map to a BsonDocument, handling union-typed values.
      */
     private BsonDocument convertMapValue(Schema mapSchema, Map<String, Object> mapValue) {
+        logger.trace("convertMapValue: processing map with {} entries", mapValue.size());
+
         BsonDocument mapDoc = new BsonDocument();
         Schema valueSchema = mapSchema.valueSchema();
 
         for (Map.Entry<String, Object> entry : mapValue.entrySet()) {
-            BsonValue convertedValue = convertValue(valueSchema, entry.getValue());
-            mapDoc.put(entry.getKey(), convertedValue);
+            String key = entry.getKey();
+            Object value = entry.getValue();
+
+            logger.trace("  map entry key='{}' valueSchemaType='{}' value.isNull={}",
+                         key, valueSchema.type(), value == null);
+
+            BsonValue convertedValue = convertValue(valueSchema, value);
+            mapDoc.put(key, convertedValue);
         }
 
         return mapDoc;
