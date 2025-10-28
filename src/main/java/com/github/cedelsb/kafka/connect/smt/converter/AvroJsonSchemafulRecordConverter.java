@@ -147,17 +147,23 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
         BsonDocument bd = new BsonDocument();
         for(Object entry : m.keySet()) {
             String key = (String)entry;
+            Object value = m.get(key);
             Schema.Type valueSchemaType = field.schema().valueSchema().type();
             if(valueSchemaType.isPrimitive()) {
-                bd.put(key, getConverter(field.schema().valueSchema()).toBson(m.get(key),field.schema()));
+                bd.put(key, getConverter(field.schema().valueSchema()).toBson(value, field.schema()));
             } else if (valueSchemaType.equals(Schema.Type.ARRAY)) {
                 final Field elementField = new Field(key, 0, field.schema().valueSchema());
-                final List list = (List)m.get(key);
+                final List list = (List)value;
                 logger.trace("adding array values to {} of type valueSchema={} value='{}'",
                    elementField.name(), elementField.schema().valueSchema(), list);
                 bd.put(key, handleArrayField(list, elementField));
             } else {
-                bd.put(key, toBsonDoc(field.schema().valueSchema(), m.get(key)));
+                // Handle struct values in maps (including null values)
+                if(value == null) {
+                    bd.put(key, BsonNull.VALUE);
+                } else {
+                    bd.put(key, toBsonDoc(field.schema().valueSchema(), value));
+                }
             }
         }
         doc.put(field.name(), bd);

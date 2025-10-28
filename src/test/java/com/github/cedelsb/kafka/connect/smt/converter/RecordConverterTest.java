@@ -287,6 +287,43 @@ public class RecordConverterTest {
                 () -> assertThrows(DataException.class, () -> converter.convert(null,null))
         );
     }
+
+    @Test
+    @DisplayName("test map with null struct values")
+    public void testMapWithNullStructValues() {
+        RecordConverter converter = new AvroJsonSchemafulRecordConverter();
+
+        Schema itemSchema = SchemaBuilder.struct()
+                .field("id", Schema.INT32_SCHEMA)
+                .field("name", Schema.STRING_SCHEMA)
+                .optional()
+                .build();
+
+        Schema mapSchema = SchemaBuilder.map(Schema.STRING_SCHEMA, itemSchema).optional().build();
+        Schema schema = SchemaBuilder.struct().field("items", mapSchema).build();
+
+        Map<String, Struct> mapValue = new HashMap<>();
+        mapValue.put("item1", new Struct(itemSchema).put("id", 1).put("name", "Alice"));
+        mapValue.put("item2", new Struct(itemSchema).put("id", 2).put("name", "Bob"));
+        mapValue.put("item3", null);  // null value in map
+
+        Struct struct = new Struct(schema).put("items", mapValue);
+
+        BsonDocument result = converter.convert(schema, struct);
+        BsonDocument mapDoc = result.getDocument("items");
+
+        assertEquals(3, mapDoc.size());
+
+        BsonDocument item1 = mapDoc.getDocument("item1");
+        assertEquals(1, item1.getInt32("id").getValue());
+        assertEquals("Alice", item1.getString("name").getValue());
+
+        BsonDocument item2 = mapDoc.getDocument("item2");
+        assertEquals(2, item2.getInt32("id").getValue());
+        assertEquals("Bob", item2.getString("name").getValue());
+
+        assertTrue(mapDoc.get("item3").isNull());
+    }
 /*
     @Test
     @DisplayName("test json object conversion")
