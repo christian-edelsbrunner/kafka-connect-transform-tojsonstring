@@ -119,7 +119,7 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
         logger.trace("processing field '{}'", field.name());
 
         if (isSupportedLogicalType(field.schema())) {
-            doc.put(field.name(), getConverter(field.schema()).toBson(struct.get(field), field.schema()));
+            handleLogicalTypeField(doc, struct.get(field), field);
             return;
         }
 
@@ -153,6 +153,11 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
                          field.name(), field.schema().type(), exc.getMessage());
             throw new DataException("error while processing field " + field.name(), exc);
         }
+    }
+
+    private void handleLogicalTypeField(BsonDocument doc, Object value, Field field) {
+        logger.trace("handling logical type '{}' name='{}'", field.schema().name(), field.name());
+        doc.put(field.name(), getConverter(field.schema()).toBson(value, field.schema()));
     }
 
     private void handleMapField(BsonDocument doc, Map m, Field field) {
