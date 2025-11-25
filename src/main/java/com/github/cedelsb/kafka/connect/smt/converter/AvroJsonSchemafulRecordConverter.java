@@ -175,20 +175,7 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
     }
 
     private BsonValue handleArrayField(List list, Field field) {
-        if (list == null) {
-            logger.trace("  array is null");
-            return BsonNull.VALUE;
-        }
-
-        BsonArray array = new BsonArray();
-        Schema valueSchema = field.schema().valueSchema();
-
-        for (Object element : list) {
-            BsonValue convertedElement = convertValue(valueSchema, element);
-            array.add(convertedElement);
-        }
-
-        return array;
+        return convertArrayValue(field.schema(), list);
     }
 
     private BsonValue handleStructField(Struct struct, Field field) {
@@ -291,6 +278,23 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
         } else {
             return toBsonDoc(schema, struct);
         }
+    }
+
+    private BsonValue convertArrayValue(Schema arraySchema, List arrayValue) {
+        if (arrayValue == null) {
+            logger.trace("  array is null");
+            return BsonNull.VALUE;
+        }
+
+        BsonArray array = new BsonArray();
+        Schema valueSchema = arraySchema.valueSchema();
+
+        for (Object element : arrayValue) {
+            BsonValue convertedElement = convertValue(valueSchema, element);
+            array.add(convertedElement);
+        }
+
+        return array;
     }
 
     /**
