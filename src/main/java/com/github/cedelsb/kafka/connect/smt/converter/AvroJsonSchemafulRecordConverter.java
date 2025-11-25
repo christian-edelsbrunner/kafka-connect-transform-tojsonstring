@@ -208,7 +208,7 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
         Schema.Type type = schema.type();
 
         if (type.isPrimitive() || isSupportedLogicalType(schema)) {
-            return getConverter(schema).toBson(value, schema);
+            return convertSimpleValue(schema, value);
         }
 
         switch (type) {
