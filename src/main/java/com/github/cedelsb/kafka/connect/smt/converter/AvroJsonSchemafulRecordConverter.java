@@ -121,6 +121,7 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
         BsonValue value;
 
         if (isSupportedLogicalType(field.schema())) {
+            logger.trace("handling logical type '{}' name='{}'", field.schema().name(), field.name());
             value = handleLogicalTypeField(struct.get(field), field);
         } else {
             try {
@@ -134,15 +135,22 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
                     case INT64:
                     case STRING:
                     case BYTES:
+                        logger.trace("handling primitive type '{}' name='{}'", field.schema().type(), field.name());
                         value = handlePrimitiveField(struct.get(field), field);
                         break;
                     case STRUCT:
+                        logger.trace("handling struct field='{}' schema.name='{}' schema.type='{}'",
+                                     field.name(), field.schema().name(), field.schema().type());
                         value = handleStructField((Struct) struct.get(field), field);
                         break;
                     case ARRAY:
+                        logger.trace("handling array field='{}' valueSchema.type='{}'",
+                                     field.name(), field.schema().valueSchema().type());
                         value = handleArrayField((List) struct.get(field), field);
                         break;
                     case MAP:
+                        logger.trace("handling map field='{}' valueSchema.type='{}'",
+                                     field.name(), field.schema().valueSchema().type());
                         value = handleMapField((Map) struct.get(field), field);
                         break;
                     default:
@@ -159,14 +167,10 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
     }
 
     private BsonValue handleLogicalTypeField(Object value, Field field) {
-        logger.trace("handling logical type '{}' name='{}'", field.schema().name(), field.name());
         return getConverter(field.schema()).toBson(value, field.schema());
     }
 
     private BsonValue handleMapField(Map m, Field field) {
-        logger.trace("handling map field='{}' valueSchema.type='{}'",
-                     field.name(), field.schema().valueSchema().type());
-
         if (m == null) {
             logger.trace("  field='{}' has null map", field.name());
             return BsonNull.VALUE;
@@ -176,9 +180,6 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
     }
 
     private BsonValue handleArrayField(List list, Field field) {
-        logger.trace("handling array field='{}' valueSchema.type='{}'",
-                     field.name(), field.schema().valueSchema().type());
-
         if (list == null) {
             logger.trace("  array is null");
             return BsonNull.VALUE;
@@ -196,9 +197,6 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
     }
 
     private BsonValue handleStructField(Struct struct, Field field) {
-        logger.trace("handling struct field='{}' schema.name='{}' schema.type='{}'",
-                     field.name(), field.schema().name(), field.schema().type());
-
         if (struct == null) {
             logger.trace("  field='{}' has null struct value", field.name());
             return BsonNull.VALUE;
@@ -324,7 +322,6 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
     }
 
     private BsonValue handlePrimitiveField(Object value, Field field) {
-        logger.trace("handling primitive type '{}' name='{}'", field.schema().type(), field.name());
         return getConverter(field.schema()).toBson(value, field.schema());
     }
 
