@@ -122,7 +122,7 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
 
         if (isSupportedLogicalType(field.schema())) {
             logger.trace("handling logical type '{}' name='{}'", field.schema().name(), field.name());
-            value = handleLogicalTypeField(struct.get(field), field);
+            value = handleSimpleField(struct.get(field), field);
         } else {
             try {
                 switch (field.schema().type()) {
@@ -136,7 +136,7 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
                     case STRING:
                     case BYTES:
                         logger.trace("handling primitive type '{}' name='{}'", field.schema().type(), field.name());
-                        value = handlePrimitiveField(struct.get(field), field);
+                        value = handleSimpleField(struct.get(field), field);
                         break;
                     case STRUCT:
                         logger.trace("handling struct field='{}' schema.name='{}' schema.type='{}'",
@@ -166,7 +166,7 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
         doc.put(field.name(), value);
     }
 
-    private BsonValue handleLogicalTypeField(Object value, Field field) {
+    private BsonValue handleSimpleField(Object value, Field field) {
         return getConverter(field.schema()).toBson(value, field.schema());
     }
 
@@ -319,10 +319,6 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
         }
 
         return mapDoc;
-    }
-
-    private BsonValue handlePrimitiveField(Object value, Field field) {
-        return getConverter(field.schema()).toBson(value, field.schema());
     }
 
     private boolean isSupportedLogicalType(Schema schema) {
