@@ -118,44 +118,14 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
     private void processField(BsonDocument doc, Struct struct, Field field) {
         logger.trace("processing field '{}'", field.name());
 
-        BsonValue value;
-
-        if (isSupportedLogicalType(field.schema())) {
-            value = convertSimpleValue(field.schema(), struct.get(field));
-        } else {
-            try {
-                switch (field.schema().type()) {
-                    case BOOLEAN:
-                    case FLOAT32:
-                    case FLOAT64:
-                    case INT8:
-                    case INT16:
-                    case INT32:
-                    case INT64:
-                    case STRING:
-                    case BYTES:
-                        value = convertSimpleValue(field.schema(), struct.get(field));
-                        break;
-                    case STRUCT:
-                        value = convertStructValue(field.schema(), (Struct) struct.get(field));
-                        break;
-                    case ARRAY:
-                        value = convertArrayValue(field.schema(), (List) struct.get(field));
-                        break;
-                    case MAP:
-                        value = convertMapValue(field.schema(), (Map) struct.get(field));
-                        break;
-                    default:
-                        throw new DataException("unexpected / unsupported schema type " + field.schema().type());
-                }
-            } catch (Exception exc) {
-                logger.error("Error processing field '{}' of type '{}': {}",
-                             field.name(), field.schema().type(), exc.getMessage());
-                throw new DataException("error while processing field " + field.name(), exc);
-            }
+        try {
+            BsonValue value = convertValue(field.schema(), struct.get(field));
+            doc.put(field.name(), value);
+        } catch (Exception exc) {
+            logger.error("Error processing field '{}' of type '{}': {}",
+                         field.name(), field.schema().type(), exc.getMessage());
+            throw new DataException("error while processing field " + field.name(), exc);
         }
-
-        doc.put(field.name(), value);
     }
 
     private BsonValue convertSimpleValue(Schema schema, Object value) {
