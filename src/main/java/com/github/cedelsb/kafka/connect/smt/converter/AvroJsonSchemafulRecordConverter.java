@@ -224,8 +224,7 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
             case STRUCT:
                 return convertStructValue(schema, (Struct) value);
             case ARRAY:
-                Field arrayField = new Field("temp", 0, schema);
-                return handleArrayField((List) value, arrayField);
+                return convertArrayValue(schema, (List) value);
             case MAP:
                 return convertMapValue(schema, (Map<String, Object>) value);
             default:
