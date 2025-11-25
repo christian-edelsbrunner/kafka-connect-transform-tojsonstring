@@ -179,23 +179,7 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
     }
 
     private BsonValue handleStructField(Struct struct, Field field) {
-        if (struct == null) {
-            logger.trace("  field='{}' has null struct value", field.name());
-            return BsonNull.VALUE;
-        }
-
-        logger.trace("  struct value: {}", struct.toString());
-
-        boolean isUnion = unionUnwrapEnabled && isUnionStruct(field.schema());
-        logger.trace("  isUnionStruct={} unionUnwrapEnabled={} for schema.name='{}'",
-                     isUnion, unionUnwrapEnabled, field.schema().name());
-
-        if (isUnion) {
-            return unwrapUnion(field.schema(), struct);
-        } else {
-            logger.trace("  processing as regular struct with {} fields", field.schema().fields().size());
-            return toBsonDoc(field.schema(), struct);
-        }
+        return convertStructValue(field.schema(), struct);
     }
 
     /**
@@ -253,11 +237,21 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
      * Converts a struct value, detecting and unwrapping unions if enabled and necessary.
      */
     private BsonValue convertStructValue(Schema schema, Struct struct) {
+        if (struct == null) {
+            logger.trace("  struct is null");
+            return BsonNull.VALUE;
+        }
 
-        if (unionUnwrapEnabled && isUnionStruct(schema)) {
-            logger.trace("convertStructValue: detected union struct, unwrapping");
+        logger.trace("  struct value: {}", struct.toString());
+
+        boolean isUnion = isUnionStruct(schema);
+        logger.trace("  isUnionStruct={} unionUnwrapEnabled={} for schema.name='{}'",
+                     isUnion, unionUnwrapEnabled, schema.name());
+
+        if (unionUnwrapEnabled && isUnion) {
             return unwrapUnion(schema, struct);
         } else {
+            logger.trace("  processing as regular struct with {} fields", schema.fields().size());
             return toBsonDoc(schema, struct);
         }
     }
