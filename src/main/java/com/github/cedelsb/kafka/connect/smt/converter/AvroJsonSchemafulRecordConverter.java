@@ -191,9 +191,7 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
                      isUnion, unionUnwrapEnabled, field.schema().name());
 
         if (isUnion) {
-            BsonDocument tempDoc = new BsonDocument();
-            unwrapAndPutUnion(tempDoc, struct, field);
-            return tempDoc.get(field.name());
+            return unwrapUnion(field.schema(), struct);
         } else {
             logger.trace("  processing as regular struct with {} fields", field.schema().fields().size());
             return toBsonDoc(field.schema(), struct);
@@ -201,39 +199,26 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
     }
 
     /**
-     * Unwraps an Avro union struct and outputs only the selected branch value.
+     * Unwraps an Avro union struct and returns the selected branch value.
      * Union structs have multiple optional fields (one per branch), but only one should be non-null.
      */
-    private void unwrapAndPutUnion(BsonDocument doc, Struct struct, Field field) {
-        logger.trace("unwrapping union field='{}' schema.name='{}'",
-                     field.name(), field.schema().name());
+    private BsonValue unwrapUnion(Schema schema, Struct struct) {
+        logger.trace("unwrapping union schema.name='{}'", schema.name());
 
-        int nonNullBranches = 0;
-
-        for (Field unionBranch : field.schema().fields()) {
+        for (Field unionBranch : schema.fields()) {
             Object branchValue = struct.get(unionBranch);
             logger.trace("  union branch='{}' type='{}' value.isNull={}",
                          unionBranch.name(), unionBranch.schema().type(), branchValue == null);
 
             if (branchValue != null) {
-                nonNullBranches++;
                 logger.trace("  selected branch='{}' type='{}' - unwrapping to parent field",
                              unionBranch.name(), unionBranch.schema().type());
-
-                BsonValue unwrappedValue = convertValue(unionBranch.schema(), branchValue);
-                doc.put(field.name(), unwrappedValue);
-                break; // Only one branch should have a value
+                return convertValue(unionBranch.schema(), branchValue);
             }
         }
 
-        logger.trace("  union unwrapping complete for field='{}', nonNullBranches={}",
-                     field.name(), nonNullBranches);
-
-        // If all branches were null, output BsonNull
-        if (!doc.containsKey(field.name())) {
-            logger.trace("  all union branches null for field='{}' - adding BsonNull", field.name());
-            doc.put(field.name(), BsonNull.VALUE);
-        }
+        logger.trace("  all union branches null - returning BsonNull");
+        return BsonNull.VALUE;
     }
 
     /**
@@ -271,10 +256,7 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
 
         if (unionUnwrapEnabled && isUnionStruct(schema)) {
             logger.trace("convertStructValue: detected union struct, unwrapping");
-            BsonDocument tempDoc = new BsonDocument();
-            Field tempField = new Field("temp", 0, schema);
-            unwrapAndPutUnion(tempDoc, struct, tempField);
-            return tempDoc.get("temp");
+            return unwrapUnion(schema, struct);
         } else {
             return toBsonDoc(schema, struct);
         }
