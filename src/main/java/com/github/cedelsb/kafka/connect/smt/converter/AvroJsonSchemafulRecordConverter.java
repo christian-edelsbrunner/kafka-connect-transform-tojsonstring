@@ -61,6 +61,18 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
         registerLogicalConverters();
     }
 
+    @Override
+    public BsonDocument convert(Schema schema, Object value) {
+        if (schema == null || value == null) {
+            throw new DataException("error: schema and/or value was null for AVRO conversion");
+        }
+
+        logger.trace("convert() entry: schema.name='{}' schema.type='{}' value.class='{}'",
+                     schema.name(), schema.type(), value.getClass().getSimpleName());
+
+        return toBsonDoc(schema, value);
+    }
+
     private void registerStandardConverters() {
         registerSinkFieldConverter(new BooleanFieldConverter());
         registerSinkFieldConverter(new Int8FieldConverter());
@@ -80,18 +92,6 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
         registerSinkFieldLogicalConverter(new DecimalFieldConverter());
     }
 
-    @Override
-    public BsonDocument convert(Schema schema, Object value) {
-        if (schema == null || value == null) {
-            throw new DataException("error: schema and/or value was null for AVRO conversion");
-        }
-
-        logger.trace("convert() entry: schema.name='{}' schema.type='{}' value.class='{}'",
-                     schema.name(), schema.type(), value.getClass().getSimpleName());
-
-        return toBsonDoc(schema, value);
-    }
-
     private void registerSinkFieldConverter(SinkFieldConverter converter) {
         converters.put(converter.getSchema().type(), converter);
     }
@@ -104,15 +104,6 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
         BsonDocument doc = new BsonDocument();
         schema.fields().forEach(f -> processField(doc, (Struct) value, f));
         return doc;
-    }
-
-    /**
-     * Detects if a schema represents an Avro union type using Confluent's marker.
-     */
-    private boolean isUnionStruct(Schema schema) {
-        return schema != null
-               && schema.type() == Schema.Type.STRUCT
-               && CONFLUENT_UNION_MARKER.equals(schema.name());
     }
 
     private void processField(BsonDocument doc, Struct struct, Field field) {
@@ -128,42 +119,8 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
         }
     }
 
-    private BsonValue convertSimpleValue(Schema schema, Object value) {
-        if (isSupportedLogicalType(schema)) {
-            logger.trace("converting logical type '{}'", schema.name());
-        } else {
-            logger.trace("converting primitive type '{}'", schema.type());
-        }
-
-        return getConverter(schema).toBson(value, schema);
-    }
-
-    /**
-     * Unwraps an Avro union struct and returns the selected branch value.
-     * Union structs have multiple optional fields (one per branch), but only one should be non-null.
-     */
-    private BsonValue unwrapUnion(Schema schema, Struct struct) {
-        logger.trace("unwrapping union schema.name='{}'", schema.name());
-
-        for (Field unionBranch : schema.fields()) {
-            Object branchValue = struct.get(unionBranch);
-            logger.trace("  union branch='{}' type='{}' value.isNull={}",
-                         unionBranch.name(), unionBranch.schema().type(), branchValue == null);
-
-            if (branchValue != null) {
-                logger.trace("  selected branch='{}' type='{}' - unwrapping to parent field",
-                             unionBranch.name(), unionBranch.schema().type());
-                return convertValue(unionBranch.schema(), branchValue);
-            }
-        }
-
-        logger.trace("  all union branches null - returning BsonNull");
-        return BsonNull.VALUE;
-    }
-
     /**
      * Converts a value based on its schema type. Handles primitives, structs, arrays, and maps.
-     * This is a central conversion point that eliminates duplication.
      */
     private BsonValue convertValue(Schema schema, Object value) {
         if (value == null) {
@@ -186,6 +143,16 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
             default:
                 throw new DataException("Unsupported schema type: " + type);
         }
+    }
+
+    private BsonValue convertSimpleValue(Schema schema, Object value) {
+        if (isSupportedLogicalType(schema)) {
+            logger.trace("converting logical type '{}'", schema.name());
+        } else {
+            logger.trace("converting primitive type '{}'", schema.type());
+        }
+
+        return getConverter(schema).toBson(value, schema);
     }
 
     /**
@@ -245,6 +212,29 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
         return mapDoc;
     }
 
+    /**
+     * Unwraps an Avro union struct and returns the selected branch value.
+     * Union structs have multiple optional fields (one per branch), but only one should be non-null.
+     */
+    private BsonValue unwrapUnion(Schema schema, Struct struct) {
+        logger.trace("unwrapping union schema.name='{}'", schema.name());
+
+        for (Field unionBranch : schema.fields()) {
+            Object branchValue = struct.get(unionBranch);
+            logger.trace("  union branch='{}' type='{}' value.isNull={}",
+                         unionBranch.name(), unionBranch.schema().type(), branchValue == null);
+
+            if (branchValue != null) {
+                logger.trace("  selected branch='{}' type='{}' - unwrapping to parent field",
+                             unionBranch.name(), unionBranch.schema().type());
+                return convertValue(unionBranch.schema(), branchValue);
+            }
+        }
+
+        logger.trace("  all union branches null - returning BsonNull");
+        return BsonNull.VALUE;
+    }
+
     private boolean isSupportedLogicalType(Schema schema) {
         return schema.name() != null && LOGICAL_TYPE_NAMES.contains(schema.name());
     }
@@ -263,5 +253,14 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
         }
 
         return converter;
+    }
+
+    /**
+     * Detects if a schema represents an Avro union type using Confluent's marker.
+     */
+    private boolean isUnionStruct(Schema schema) {
+        return schema != null
+               && schema.type() == Schema.Type.STRUCT
+               && CONFLUENT_UNION_MARKER.equals(schema.name());
     }
 }
