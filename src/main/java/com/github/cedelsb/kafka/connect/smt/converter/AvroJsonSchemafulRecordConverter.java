@@ -122,7 +122,7 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
 
         if (isSupportedLogicalType(field.schema())) {
             logger.trace("handling logical type '{}' name='{}'", field.schema().name(), field.name());
-            value = handleSimpleField(struct.get(field), field);
+            value = convertSimpleValue(field.schema(), struct.get(field));
         } else {
             try {
                 switch (field.schema().type()) {
@@ -136,22 +136,22 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
                     case STRING:
                     case BYTES:
                         logger.trace("handling primitive type '{}' name='{}'", field.schema().type(), field.name());
-                        value = handleSimpleField(struct.get(field), field);
+                        value = convertSimpleValue(field.schema(), struct.get(field));
                         break;
                     case STRUCT:
                         logger.trace("handling struct field='{}' schema.name='{}' schema.type='{}'",
                                      field.name(), field.schema().name(), field.schema().type());
-                        value = handleStructField((Struct) struct.get(field), field);
+                        value = convertStructValue(field.schema(), (Struct) struct.get(field));
                         break;
                     case ARRAY:
                         logger.trace("handling array field='{}' valueSchema.type='{}'",
                                      field.name(), field.schema().valueSchema().type());
-                        value = handleArrayField((List) struct.get(field), field);
+                        value = convertArrayValue(field.schema(), (List) struct.get(field));
                         break;
                     case MAP:
                         logger.trace("handling map field='{}' valueSchema.type='{}'",
                                      field.name(), field.schema().valueSchema().type());
-                        value = handleMapField((Map) struct.get(field), field);
+                        value = convertMapValue(field.schema(), (Map) struct.get(field));
                         break;
                     default:
                         throw new DataException("unexpected / unsupported schema type " + field.schema().type());
@@ -166,20 +166,11 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
         doc.put(field.name(), value);
     }
 
-    private BsonValue handleSimpleField(Object value, Field field) {
-        return getConverter(field.schema()).toBson(value, field.schema());
-    }
-
-    private BsonValue handleMapField(Map m, Field field) {
-        return convertMapValue(field.schema(), (Map<String, Object>) m);
-    }
-
-    private BsonValue handleArrayField(List list, Field field) {
-        return convertArrayValue(field.schema(), list);
-    }
-
-    private BsonValue handleStructField(Struct struct, Field field) {
-        return convertStructValue(field.schema(), struct);
+    private BsonValue convertSimpleValue(Schema schema, Object value) {
+        if (value == null) {
+            return BsonNull.VALUE;
+        }
+        return getConverter(schema).toBson(value, schema);
     }
 
     /**
