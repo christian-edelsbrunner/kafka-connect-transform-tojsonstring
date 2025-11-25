@@ -171,11 +171,6 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
     }
 
     private BsonValue handleMapField(Map m, Field field) {
-        if (m == null) {
-            logger.trace("  field='{}' has null map", field.name());
-            return BsonNull.VALUE;
-        }
-
         return convertMapValue(field.schema(), (Map<String, Object>) m);
     }
 
@@ -299,9 +294,14 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
     }
 
     /**
-     * Converts a map to a BsonDocument, handling union-typed values.
+     * Converts a map to a BsonValue, handling union-typed values and null maps.
      */
-    private BsonDocument convertMapValue(Schema mapSchema, Map<String, Object> mapValue) {
+    private BsonValue convertMapValue(Schema mapSchema, Map<String, Object> mapValue) {
+        if (mapValue == null) {
+            logger.trace("  map is null");
+            return BsonNull.VALUE;
+        }
+
         logger.trace("convertMapValue: processing map with {} entries", mapValue.size());
 
         BsonDocument mapDoc = new BsonDocument();
