@@ -40,6 +40,7 @@ import java.util.*;
 public class AvroJsonSchemafulRecordConverter implements RecordConverter {
 
     private static final Logger logger = LoggerFactory.getLogger(AvroJsonSchemafulRecordConverter.class);
+    private static final String CONFLUENT_UNION_MARKER = "io.confluent.connect.avro.Union";
 
     public static final Set<String> LOGICAL_TYPE_NAMES = new HashSet<>(
             Arrays.asList(Date.LOGICAL_NAME, Decimal.LOGICAL_NAME,
@@ -48,8 +49,14 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
 
     private final Map<Schema.Type, SinkFieldConverter> converters = new HashMap<>();
     private final Map<String, SinkFieldConverter> logicalConverters = new HashMap<>();
+    private final boolean unionUnwrapEnabled;
 
     public AvroJsonSchemafulRecordConverter() {
+        this(false);
+    }
+
+    public AvroJsonSchemafulRecordConverter(boolean unionUnwrapEnabled) {
+        this.unionUnwrapEnabled = unionUnwrapEnabled;
 
         //standard types
         registerSinkFieldConverter(new BooleanFieldConverter());
@@ -89,6 +96,15 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
         BsonDocument doc = new BsonDocument();
         schema.fields().forEach(f -> processField(doc, (Struct) value, f));
         return doc;
+    }
+
+    /**
+     * Detects if a schema represents an Avro union type using Confluent's marker.
+     */
+    private boolean isUnionStruct(Schema schema) {
+        return schema != null
+               && schema.type() == Schema.Type.STRUCT
+               && CONFLUENT_UNION_MARKER.equals(schema.name());
     }
 
     private void processField(BsonDocument doc, Struct struct, Field field) {
@@ -171,7 +187,29 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
         }
 
         logger.trace(struct.toString());
-        doc.put(field.name(), toBsonDoc(field.schema(), struct));
+        if (unionUnwrapEnabled && isUnionStruct(field.schema())) {
+            unwrapAndPutUnion(doc, struct, field);
+        } else {
+            doc.put(field.name(), toBsonDoc(field.schema(), struct));
+        }
+    }
+
+    /**
+     * Unwraps an Avro union struct and outputs only the selected branch value.
+     * Union structs have multiple optional fields (one per branch), but only one should be non-null.
+     */
+    private void unwrapAndPutUnion(BsonDocument doc, Struct struct, Field field) {
+        for (Field unionBranch : field.schema().fields()) {
+            Object branchValue = struct.get(unionBranch);
+            if (branchValue != null) {
+                BsonValue unwrappedValue = convertValue(unionBranch.schema(), branchValue);
+                doc.put(field.name(), unwrappedValue);
+                return; // Only one branch should have a value
+            }
+        }
+
+        // If all branches were null, output BsonNull
+        doc.put(field.name(), BsonNull.VALUE);
     }
 
     /**
@@ -203,14 +241,21 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
     }
 
     /**
-     * Converts a struct value to a BsonDocument.
+     * Converts a struct value, detecting and unwrapping unions if enabled and necessary.
      */
     private BsonValue convertStructValue(Schema schema, Struct struct) {
-        return toBsonDoc(schema, struct);
+        if (unionUnwrapEnabled && isUnionStruct(schema)) {
+            BsonDocument tempDoc = new BsonDocument();
+            Field tempField = new Field("temp", 0, schema);
+            unwrapAndPutUnion(tempDoc, struct, tempField);
+            return tempDoc.get("temp");
+        } else {
+            return toBsonDoc(schema, struct);
+        }
     }
 
     /**
-     * Converts a map to a BsonDocument.
+     * Converts a map to a BsonDocument, handling union-typed values.
      */
     private BsonDocument convertMapValue(Schema mapSchema, Map<String, Object> mapValue) {
         BsonDocument mapDoc = new BsonDocument();
