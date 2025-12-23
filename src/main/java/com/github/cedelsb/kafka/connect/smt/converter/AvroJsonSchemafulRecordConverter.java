@@ -138,29 +138,9 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
             doc.put(field.name(), BsonNull.VALUE);
             return;
         }
-        BsonDocument bd = new BsonDocument();
-        for (Object entry : m.keySet()) {
-            String key = (String) entry;
-            Object value = m.get(key);
-            Schema.Type valueSchemaType = field.schema().valueSchema().type();
-            if (valueSchemaType.isPrimitive()) {
-                bd.put(key, getConverter(field.schema().valueSchema()).toBson(value, field.schema()));
-            } else if (valueSchemaType.equals(Schema.Type.ARRAY)) {
-                final Field elementField = new Field(key, 0, field.schema().valueSchema());
-                final List list = (List) value;
-                logger.trace("adding array values to {} of type valueSchema={} value='{}'",
-                             elementField.name(), elementField.schema().valueSchema(), list);
-                bd.put(key, handleArrayField(list, elementField));
-            } else {
-                // Handle struct values in maps (including null values)
-                if (value == null) {
-                    bd.put(key, BsonNull.VALUE);
-                } else {
-                    bd.put(key, toBsonDoc(field.schema().valueSchema(), value));
-                }
-            }
-        }
-        doc.put(field.name(), bd);
+
+        BsonDocument mapDoc = convertMapValue(field.schema(), (Map<String, Object>) m);
+        doc.put(field.name(), mapDoc);
     }
 
     private BsonValue handleArrayField(List list, Field field) {
@@ -170,30 +150,78 @@ public class AvroJsonSchemafulRecordConverter implements RecordConverter {
             logger.trace("no array -> adding null");
             return BsonNull.VALUE;
         }
+
         BsonArray array = new BsonArray();
-        Schema.Type st = field.schema().valueSchema().type();
+        Schema valueSchema = field.schema().valueSchema();
+
         for (Object element : list) {
-            if (st.isPrimitive()) {
-                array.add(getConverter(field.schema().valueSchema()).toBson(element, field.schema()));
-            } else if (st == Schema.Type.ARRAY) {
-                Field elementField = new Field("first", 0, field.schema().valueSchema());
-                array.add(handleArrayField((List) element, elementField));
-            } else {
-                array.add(toBsonDoc(field.schema().valueSchema(), element));
-            }
+            BsonValue convertedElement = convertValue(valueSchema, element);
+            array.add(convertedElement);
         }
+
         return array;
     }
 
     private void handleStructField(BsonDocument doc, Struct struct, Field field) {
         logger.trace("handling complex type 'struct'");
-        if (struct != null) {
-            logger.trace(struct.toString());
-            doc.put(field.name(), toBsonDoc(field.schema(), struct));
-        } else {
+        if (struct == null) {
             logger.trace("no field in struct -> adding null");
             doc.put(field.name(), BsonNull.VALUE);
+            return;
         }
+
+        logger.trace(struct.toString());
+        doc.put(field.name(), toBsonDoc(field.schema(), struct));
+    }
+
+    /**
+     * Converts a value based on its schema type. Handles primitives, structs, arrays, and maps.
+     * This is a central conversion point that eliminates duplication.
+     */
+    private BsonValue convertValue(Schema schema, Object value) {
+        if (value == null) {
+            return BsonNull.VALUE;
+        }
+
+        Schema.Type type = schema.type();
+
+        if (type.isPrimitive() || isSupportedLogicalType(schema)) {
+            return getConverter(schema).toBson(value, schema);
+        }
+
+        switch (type) {
+            case STRUCT:
+                return convertStructValue(schema, (Struct) value);
+            case ARRAY:
+                Field arrayField = new Field("temp", 0, schema);
+                return handleArrayField((List) value, arrayField);
+            case MAP:
+                return convertMapValue(schema, (Map<String, Object>) value);
+            default:
+                throw new DataException("Unsupported schema type: " + type);
+        }
+    }
+
+    /**
+     * Converts a struct value to a BsonDocument.
+     */
+    private BsonValue convertStructValue(Schema schema, Struct struct) {
+        return toBsonDoc(schema, struct);
+    }
+
+    /**
+     * Converts a map to a BsonDocument.
+     */
+    private BsonDocument convertMapValue(Schema mapSchema, Map<String, Object> mapValue) {
+        BsonDocument mapDoc = new BsonDocument();
+        Schema valueSchema = mapSchema.valueSchema();
+
+        for (Map.Entry<String, Object> entry : mapValue.entrySet()) {
+            BsonValue convertedValue = convertValue(valueSchema, entry.getValue());
+            mapDoc.put(entry.getKey(), convertedValue);
+        }
+
+        return mapDoc;
     }
 
     private void handlePrimitiveField(BsonDocument doc, Object value, Field field) {
