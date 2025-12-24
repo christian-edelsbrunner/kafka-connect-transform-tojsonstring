@@ -287,6 +287,218 @@ public class RecordConverterTest {
                 () -> assertThrows(DataException.class, () -> converter.convert(null,null))
         );
     }
+
+    @Test
+    @DisplayName("test map with null struct values")
+    public void testMapWithNullStructValues() {
+        RecordConverter converter = new AvroJsonSchemafulRecordConverter();
+
+        Schema itemSchema = SchemaBuilder.struct()
+                .field("id", Schema.INT32_SCHEMA)
+                .field("name", Schema.STRING_SCHEMA)
+                .optional()
+                .build();
+
+        Schema mapSchema = SchemaBuilder.map(Schema.STRING_SCHEMA, itemSchema).optional().build();
+        Schema schema = SchemaBuilder.struct().field("items", mapSchema).build();
+
+        Map<String, Struct> mapValue = new HashMap<>();
+        mapValue.put("item1", new Struct(itemSchema).put("id", 1).put("name", "Alice"));
+        mapValue.put("item2", new Struct(itemSchema).put("id", 2).put("name", "Bob"));
+        mapValue.put("item3", null);  // null value in map
+
+        Struct struct = new Struct(schema).put("items", mapValue);
+
+        BsonDocument result = converter.convert(schema, struct);
+        BsonDocument mapDoc = result.getDocument("items");
+
+        assertEquals(3, mapDoc.size());
+
+        BsonDocument item1 = mapDoc.getDocument("item1");
+        assertEquals(1, item1.getInt32("id").getValue());
+        assertEquals("Alice", item1.getString("name").getValue());
+
+        BsonDocument item2 = mapDoc.getDocument("item2");
+        assertEquals(2, item2.getInt32("id").getValue());
+        assertEquals("Bob", item2.getString("name").getValue());
+
+        assertTrue(mapDoc.get("item3").isNull());
+    }
+
+    @Test
+    @DisplayName("test union unwrapping disabled by default")
+    public void testUnionUnwrappingDisabledByDefault() {
+        RecordConverter converter = new AvroJsonSchemafulRecordConverter();
+
+        // Create union schema: union[null, string]
+        Schema unionSchema = SchemaBuilder.struct()
+                .name("io.confluent.connect.avro.Union")
+                .field("null", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("string", Schema.OPTIONAL_STRING_SCHEMA)
+                .optional()
+                .build();
+
+        Schema rootSchema = SchemaBuilder.struct()
+                .field("myUnion", unionSchema)
+                .build();
+
+        Struct unionValue = new Struct(unionSchema).put("string", "test");
+        Struct rootStruct = new Struct(rootSchema).put("myUnion", unionValue);
+
+        BsonDocument result = converter.convert(rootSchema, rootStruct);
+
+        // With unwrapping disabled, union should be output as a document with all branches
+        BsonDocument unionDoc = result.getDocument("myUnion");
+        assertTrue(unionDoc.get("null").isNull());
+        assertEquals("test", unionDoc.getString("string").getValue());
+    }
+
+    @Test
+    @DisplayName("test union unwraps to actual value")
+    public void testUnionUnwrapsToActualValue() {
+        RecordConverter converter = new AvroJsonSchemafulRecordConverter(true);
+
+        // Create union schema: union[null, string]
+        Schema unionSchema = SchemaBuilder.struct()
+                .name("io.confluent.connect.avro.Union")
+                .field("null", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("string", Schema.OPTIONAL_STRING_SCHEMA)
+                .optional()
+                .build();
+
+        Schema rootSchema = SchemaBuilder.struct()
+                .field("myUnion", unionSchema)
+                .build();
+
+        Struct unionValue = new Struct(unionSchema).put("string", "test");
+        Struct rootStruct = new Struct(rootSchema).put("myUnion", unionValue);
+
+        BsonDocument result = converter.convert(rootSchema, rootStruct);
+
+        // Union should be unwrapped - value should be directly a string, not wrapped
+        assertEquals("test", result.getString("myUnion").getValue());
+    }
+
+    @Test
+    @DisplayName("test union with all null branches returns BsonNull")
+    public void testUnionWithAllNullBranches() {
+        RecordConverter converter = new AvroJsonSchemafulRecordConverter(true);
+
+        // Create union schema: union[null, string]
+        Schema unionSchema = SchemaBuilder.struct()
+                .name("io.confluent.connect.avro.Union")
+                .field("null", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("string", Schema.OPTIONAL_STRING_SCHEMA)
+                .optional()
+                .build();
+
+        Schema rootSchema = SchemaBuilder.struct()
+                .field("myUnion", unionSchema)
+                .build();
+
+        Struct unionValue = new Struct(unionSchema); // All fields null
+        Struct rootStruct = new Struct(rootSchema).put("myUnion", unionValue);
+
+        BsonDocument result = converter.convert(rootSchema, rootStruct);
+
+        // Union with all null branches should output BsonNull
+        assertTrue(result.get("myUnion").isNull());
+    }
+
+    @Test
+    @DisplayName("test map with union-typed values unwraps correctly")
+    public void testMapWithUnionValues() {
+        RecordConverter converter = new AvroJsonSchemafulRecordConverter(true);
+
+        // Create union schema for map values: union[null, string, int, boolean]
+        Schema unionSchema = SchemaBuilder.struct()
+                .name("io.confluent.connect.avro.Union")
+                .field("null", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("string", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("int", Schema.OPTIONAL_INT32_SCHEMA)
+                .field("boolean", Schema.OPTIONAL_BOOLEAN_SCHEMA)
+                .optional()
+                .build();
+
+        Schema mapSchema = SchemaBuilder.map(Schema.STRING_SCHEMA, unionSchema).build();
+
+        Schema rootSchema = SchemaBuilder.struct()
+                .field("data", mapSchema)
+                .build();
+
+        // Create map with different union value types
+        Map<String, Struct> mapData = new HashMap<>();
+        mapData.put("field1", new Struct(unionSchema).put("string", "value1"));
+        mapData.put("field2", new Struct(unionSchema).put("int", 100));
+        mapData.put("field3", new Struct(unionSchema).put("boolean", true));
+        mapData.put("field4", new Struct(unionSchema)); // All null
+
+        Struct rootStruct = new Struct(rootSchema).put("data", mapData);
+
+        BsonDocument result = converter.convert(rootSchema, rootStruct);
+        BsonDocument dataDoc = result.getDocument("data");
+
+        assertEquals(4, dataDoc.size());
+
+        // All union values should be unwrapped to their actual values
+        assertEquals("value1", dataDoc.getString("field1").getValue());
+        assertEquals(100, dataDoc.getInt32("field2").getValue());
+        assertTrue(dataDoc.getBoolean("field3").getValue());
+        assertTrue(dataDoc.get("field4").isNull());
+    }
+
+    @Test
+    @DisplayName("test nested unions - union containing map with union values")
+    public void testNestedUnions() {
+        RecordConverter converter = new AvroJsonSchemafulRecordConverter(true);
+
+        // Inner union: union[null, string, int] for map values
+        Schema innerUnionSchema = SchemaBuilder.struct()
+                .name("io.confluent.connect.avro.Union")
+                .field("null", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("string", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("int", Schema.OPTIONAL_INT32_SCHEMA)
+                .optional()
+                .build();
+
+        Schema mapSchema = SchemaBuilder.map(Schema.STRING_SCHEMA, innerUnionSchema).optional().build();
+
+        // Outer union: union[null, map]
+        Schema outerUnionSchema = SchemaBuilder.struct()
+                .name("io.confluent.connect.avro.Union")
+                .field("null", Schema.OPTIONAL_STRING_SCHEMA)
+                .field("map", mapSchema)
+                .optional()
+                .build();
+
+        Schema rootSchema = SchemaBuilder.struct()
+                .field("id", Schema.STRING_SCHEMA)
+                .field("data", outerUnionSchema)
+                .build();
+
+        // Create nested structure: outer union contains map with inner union values
+        Map<String, Struct> mapData = new HashMap<>();
+        mapData.put("currency", new Struct(innerUnionSchema).put("string", "USD"));
+        mapData.put("amount", new Struct(innerUnionSchema).put("int", 100));
+
+        Struct outerUnion = new Struct(outerUnionSchema).put("map", mapData);
+        Struct rootStruct = new Struct(rootSchema)
+                .put("id", "test-123")
+                .put("data", outerUnion);
+
+        BsonDocument result = converter.convert(rootSchema, rootStruct);
+
+        assertEquals("test-123", result.getString("id").getValue());
+
+        // Outer union should be unwrapped to just the map
+        BsonDocument dataDoc = result.getDocument("data");
+        assertEquals(2, dataDoc.size());
+
+        // Inner union values should also be unwrapped
+        assertEquals("USD", dataDoc.getString("currency").getValue());
+        assertEquals(100, dataDoc.getInt32("amount").getValue());
+    }
+
 /*
     @Test
     @DisplayName("test json object conversion")

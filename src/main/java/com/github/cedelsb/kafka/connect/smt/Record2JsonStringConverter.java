@@ -56,6 +56,7 @@ public abstract class Record2JsonStringConverter<R extends ConnectRecord<R>> imp
         public static final String JSON_WRITER_DATETIME_LOGICAL_TYPES_AS = "json.writer.datetime.logical.types.as";
         public static final String JSON_WRITER_DATETIME_PATTERN = "json.writer.datetime.pattern";
         public static final String JSON_WRITER_DATETIME_ZONE_ID = "json.writer.datetime.zoneid";
+        public static final String AVRO_UNION_UNWRAP_ENABLED = "avro.union.unwrap.enabled";
     }
 
     public static final ConfigDef CONFIG_DEF = new ConfigDef()
@@ -72,8 +73,9 @@ public abstract class Record2JsonStringConverter<R extends ConnectRecord<R>> imp
             .define(ConfigName.JSON_WRITER_DATETIME_PATTERN, ConfigDef.Type.STRING, null, ConfigDef.Importance.LOW,
                     "The pattern (either a predefined constant or pattern letters) to use to format the date/time or timestamp as string, only applicable if json.writer.datetime.logical.types.as=STRING")
             .define(ConfigName.JSON_WRITER_DATETIME_ZONE_ID, ConfigDef.Type.STRING, "UTC", ConfigDef.Importance.LOW,
-                    "The zone id to use to format the date/time or timestamp as string, only applicable if json.writer.datetime.logical.types.as=STRING"
-            );
+                    "The zone id to use to format the date/time or timestamp as string, only applicable if json.writer.datetime.logical.types.as=STRING")
+            .define(ConfigName.AVRO_UNION_UNWRAP_ENABLED, ConfigDef.Type.BOOLEAN, false, ConfigDef.Importance.MEDIUM,
+                    "Enable unwrapping of Avro union types. When enabled, union values are unwrapped to their actual value instead of outputting all union branches. Only the selected branch value is output, other branches (which are null) are omitted.");
 
     private static final String PURPOSE = "Converting record with Schema into a simple JSON String";
 
@@ -85,6 +87,7 @@ public abstract class Record2JsonStringConverter<R extends ConnectRecord<R>> imp
     private String writeDatetimeWithZoneId;
 
     private boolean handleLogicalTypes;
+    private boolean avroUnionUnwrapEnabled;
 
     AvroJsonSchemafulRecordConverter converter;
     JsonSchemalessRecordConverter converterWithoutSchema;
@@ -99,6 +102,7 @@ public abstract class Record2JsonStringConverter<R extends ConnectRecord<R>> imp
         writeDatetimeLogicalTypesAs = config.getString(ConfigName.JSON_WRITER_DATETIME_LOGICAL_TYPES_AS);
         writeDatetimeWithPattern = config.getString(ConfigName.JSON_WRITER_DATETIME_PATTERN);
         writeDatetimeWithZoneId = config.getString(ConfigName.JSON_WRITER_DATETIME_ZONE_ID);
+        avroUnionUnwrapEnabled = config.getBoolean(ConfigName.AVRO_UNION_UNWRAP_ENABLED);
 
         if (handleLogicalTypes) {
             Converter<Long> dateTimeConverter = null;
@@ -124,7 +128,7 @@ public abstract class Record2JsonStringConverter<R extends ConnectRecord<R>> imp
                     .build();
         }
 
-        converter = new AvroJsonSchemafulRecordConverter();
+        converter = new AvroJsonSchemafulRecordConverter(avroUnionUnwrapEnabled);
         converterWithoutSchema = new JsonSchemalessRecordConverter();
 
         transformToXML = config.getBoolean(ConfigName.POST_PROCESSING_TO_XML);

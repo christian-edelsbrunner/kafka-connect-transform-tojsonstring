@@ -30,12 +30,13 @@ It also was only tested with Avro Schemas backed by Confluent Schema Registry (b
   ////
   "transforms": "tojson",
   "transforms.tojson.type": "com.github.cedelsb.kafka.connect.smt.Record2JsonStringConverter$Value",
-  "transforms.tojson.json.string.field.name" : "myawesomejsonstring", // Optional 
-  "transforms.tojson.post.processing.to.xml" : false, // Optional 
-  "transforms.tojson.json.writer.handle.logical.types" : true, // Optional 
-  "transforms.tojson.json.writer.datetime.logical.types.as" : "STRING", // Optional 
-  "transforms.tojson.json.writer.datetime.pattern" : "", // Optional   
-  "transforms.tojson.json.writer.datetime.zoneid" : "UTC" // Optional   
+  "transforms.tojson.json.string.field.name" : "myawesomejsonstring", // Optional
+  "transforms.tojson.post.processing.to.xml" : false, // Optional
+  "transforms.tojson.json.writer.handle.logical.types" : true, // Optional
+  "transforms.tojson.json.writer.datetime.logical.types.as" : "STRING", // Optional
+  "transforms.tojson.json.writer.datetime.pattern" : "", // Optional
+  "transforms.tojson.json.writer.datetime.zoneid" : "UTC", // Optional
+  "transforms.tojson.avro.union.unwrap.enabled" : false // Optional
   ////
 }
 ```
@@ -76,6 +77,11 @@ It also was only tested with Avro Schemas backed by Confluent Schema Registry (b
 <td>json.writer.datetime.zoneid</td>
 <td>The ZoneId to use to format the date/time or timestamp as string, only applicable if json.writer.datetime.logical.types.as=STRING</td>
 <td>string</td><td>UTC</td><td>a valid ZoneId string, such as Europe/Zurich, CET or UTC</td><td>high</td>
+</tr>
+<tr>
+<td>avro.union.unwrap.enabled</td>
+<td>Enable unwrapping of Avro union types. When enabled, union values are unwrapped to their actual value instead of outputting all union branches. When Avro unions are converted to Kafka Connect Structs (Confluent format), the struct contains fields for all union branches with the selected branch holding its value and other branches as null. With this setting enabled, only the actual selected value is output, omitting null branches.</td>
+<td>boolean</td><td>false</td><td>true/false</td><td>medium</td>
 </tr>
 </tbody></table>
 
