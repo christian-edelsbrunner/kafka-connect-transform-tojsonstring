@@ -19,7 +19,7 @@ Blog Post describing how we ended up developing this SMT can be found [here](htt
 | Apache Kafka Connect | 3.x+ |
 
 ## Use Cases
-The reason why this SMT was built is the known limitation of the JDBC Sink Connector tohandle nested arrays. If you have schema which contains arrays you cannot really use the JDBC Sink Connector because this connector only supports primitive Data Types. 
+The reason why this SMT was built is the known limitation of the JDBC Sink Connector to handle nested arrays. If you have schema which contains arrays you cannot really use the JDBC Sink Connector because this connector only supports primitive Data Types. 
 But sometimes you just need also some arrays from the schema in the RDBMS. If your RDBMS is able to handle JSON Strings this SMT might be the saviour. You can use it to transform the whole record into a single JSON String which can be mapped by the JDBC Sink connector. 
 Afterwards you can use the tools offered by the RDBMS to parse and process the JSON String.
 
