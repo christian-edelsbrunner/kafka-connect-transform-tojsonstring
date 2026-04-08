@@ -46,5 +46,7 @@ jobs:
           docker pull confluentinc/cp-kafka-connect:7.2.2 &
           docker pull postgres:16 &
           wait
+      - name: Build Kafka Connect image with JDBC connector pre-installed
+        run: docker build -t cp-kafka-connect-jdbc:test -f src/test/resources/docker/Dockerfile.connect src/test/resources/docker/
       - name: Build and verify
         run: mvn -B verify
