@@ -24,11 +24,9 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import org.junit.ClassRule;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.platform.runner.JUnitPlatform;
-import org.junit.runner.RunWith;
 import org.testcontainers.containers.DockerComposeContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
@@ -49,7 +47,6 @@ import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@RunWith(JUnitPlatform.class)
 public class Record2JsonStringIT {
 
     public static final String DOCKER_COMPOSE_FILE = "src/test/resources/docker/compose.yaml";
@@ -88,16 +85,21 @@ public class Record2JsonStringIT {
         }
     }
 
-    @ClassRule
-    public static DockerComposeContainer CONTAINER_ENV =
+    public static final DockerComposeContainer CONTAINER_ENV =
             new DockerComposeContainer(new File(DOCKER_COMPOSE_FILE))
                     .withOptions("--compatibility")
                     .withLocalCompose(true)
-                    .withExposedService(KAFKA_BROKER+DEFAULT_COMPOSE_SERVICE_SUFFIX,KAFKA_BROKER_PORT)
-                    .withExposedService(KAFKA_CONNECT+DEFAULT_COMPOSE_SERVICE_SUFFIX,KAFKA_CONNECT_PORT,
+                    .withExposedService(KAFKA_BROKER+DEFAULT_COMPOSE_SERVICE_SUFFIX,KAFKA_BROKER_PORT,
                             Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(120)))
-                    .withExposedService(SCHEMA_REGISTRY +DEFAULT_COMPOSE_SERVICE_SUFFIX, SCHEMA_REGISTRY_PORT)
-                    .withExposedService(POSTGRES+DEFAULT_COMPOSE_SERVICE_SUFFIX,POSTGRES_PORT)
+                    .withExposedService(SCHEMA_REGISTRY +DEFAULT_COMPOSE_SERVICE_SUFFIX, SCHEMA_REGISTRY_PORT,
+                            Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(120)))
+                    .withExposedService(KAFKA_CONNECT+DEFAULT_COMPOSE_SERVICE_SUFFIX,KAFKA_CONNECT_PORT,
+                            Wait.forHttp("/connectors")
+                                    .forPort(KAFKA_CONNECT_PORT)
+                                    .forStatusCode(200)
+                                    .withStartupTimeout(Duration.ofSeconds(300)))
+                    .withExposedService(POSTGRES+DEFAULT_COMPOSE_SERVICE_SUFFIX,POSTGRES_PORT,
+                            Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(120)))
 
             ;
 
@@ -112,6 +114,13 @@ public class Record2JsonStringIT {
 
         registerJDBCSinkConnector(config);
 
+    }
+
+    @AfterAll
+    public static void teardown() {
+        if (CONTAINER_ENV != null) {
+            CONTAINER_ENV.stop();
+        }
     }
 
     @Test

@@ -11,8 +11,15 @@ This is a very simple Kafka Connect SMT which takes the entire key or value reco
 
 Blog Post describing how we ended up developing this SMT can be found [here](https://medium.com/bearingpoint-technology-advisory/handle-arrays-and-nested-arrays-in-kafka-jdbc-sink-connector-41929ea46301?source=friends_link&sk=b7028711b4945c820f647df950cdd949) 
 
+## Requirements
+
+| Component | Version |
+|---|---|
+| Java | 17+ |
+| Apache Kafka Connect | 3.x+ |
+
 ## Use Cases
-The reason why this SMT was built is the known limitation of the JDBC Sink Connector tohandle nested arrays. If you have schema which contains arrays you cannot really use the JDBC Sink Connector because this connector only supports primitive Data Types. 
+The reason why this SMT was built is the known limitation of the JDBC Sink Connector to handle nested arrays. If you have schema which contains arrays you cannot really use the JDBC Sink Connector because this connector only supports primitive Data Types. 
 But sometimes you just need also some arrays from the schema in the RDBMS. If your RDBMS is able to handle JSON Strings this SMT might be the saviour. You can use it to transform the whole record into a single JSON String which can be mapped by the JDBC Sink connector. 
 Afterwards you can use the tools offered by the RDBMS to parse and process the JSON String.
 
@@ -147,9 +154,13 @@ It also was only tested with Avro Schemas backed by Confluent Schema Registry (b
 } 
 ```
 ## Build, installation / deployment
-You can build this project from sources via Maven. 
+You can build this project from sources via Maven (requires Java 17+):
 
-Or download a pre-build release from [Releases](https://github.com/an0r0c/kafka-connect-transform-tojsonstring/releases) 
+```bash
+mvn clean package
+```
+
+Or download a pre-build release from [Releases](https://github.com/christian-edelsbrunner/kafka-connect-transform-tojsonstring/releases) 
 
 ## Thanks and Acknowledgement
 Basic structure of how to build a basic SMT was taken from [kafka-connect-insert-uuid](https://github.com/cjmatta/kafka-connect-insert-uuid)
