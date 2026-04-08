@@ -22,14 +22,14 @@
 
     <groupId>kafka-connect-transform-record2jsonstring</groupId>
     <artifactId>kafka-connect-transform-record2jsonstring</artifactId>
-    <version>1.4</version>
+    <version>2.0</version>
     <description>Kafka Connect single message transform (SMT) taking a record (with schema) and transforms it into a single JSON String
     </description>
-    <url>https://github.com/an0r0c/kafka-connect-transform-tojsonstring</url>
+    <url>https://github.com/christian-edelsbrunner/kafka-connect-transform-tojsonstring</url>
     <licenses>
         <license>
             <name>Apache License 2.0</name>
-            <url>https://github.com/an0r0c/kafka-connect-transform-tojsonstring/blob/main/LICENSE</url>
+            <url>https://github.com/christian-edelsbrunner/kafka-connect-transform-tojsonstring/blob/main/LICENSE</url>
             <distribution>repo</distribution>
         </license>
     </licenses>
@@ -37,7 +37,7 @@
         <developer>
             <id>an0r0c</id>
             <name>Christian Edelsbrunner</name>
-            <url>https://github.com/an0r0c</url>
+            <url>https://github.com/christian-edelsbrunner</url>
             <roles>
                 <role>Maintainer</role>
             </roles>
@@ -45,24 +45,23 @@
     </developers>
     <issueManagement>
         <system>github</system>
-        <url>https://github.com/an0r0c/kafka-connect-transform-tojsonstring/issues</url>
+        <url>https://github.com/christian-edelsbrunner/kafka-connect-transform-tojsonstring/issues</url>
     </issueManagement>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <java.version>1.8</java.version>
-        <kafkaconnect.version>3.3.1</kafkaconnect.version>
-        <confluent.version>7.2.1</confluent.version>
+        <java.version>17</java.version>
+        <kafkaconnect.version>3.9.0</kafkaconnect.version>
+        <confluent.version>7.9.0</confluent.version>
         <shade.prefix>record2json</shade.prefix>
         <sonar.projectKey>an0r0c_kafka-connect-transform-tojsonstring</sonar.projectKey>
         <sonar.organization>an0r0c</sonar.organization>
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
-        <junit.jupiter.version>5.5.2</junit.jupiter.version>
-        <junit.vintage.version>5.5.2</junit.vintage.version>
-        <junit.platform.version>1.5.2</junit.platform.version>
-        <mockito.version>3.2.4</mockito.version>
+        <junit.jupiter.version>5.10.2</junit.jupiter.version>
+        <junit.vintage.version>5.10.2</junit.vintage.version>
+        <junit.platform.version>1.10.2</junit.platform.version>
+        <mockito.version>5.11.0</mockito.version>
         <hamcrest.version>2.0.0.0</hamcrest.version>
-        <avro.version>1.11.1</avro.version>
-
+        <avro.version>1.12.0</avro.version>
     </properties>
 
     <dependencyManagement>
@@ -70,7 +69,7 @@
             <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers</artifactId>
-                <version>1.17.5</version>
+                <version>1.19.7</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -132,40 +131,40 @@
         <dependency>
             <groupId>com.github.javadev</groupId>
             <artifactId>underscore</artifactId>
-            <version>1.81</version>
+            <version>1.100</version>
         </dependency>
         <dependency>
             <groupId>org.mongodb</groupId>
             <artifactId>bson</artifactId>
-            <version>4.8.0</version>
+            <version>4.11.0</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.4.14</version>
+            <version>1.5.6</version>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
-            <version>1.19.3</version>
+            <version>1.19.7</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>kafka</artifactId>
-            <version>1.19.3</version>
+            <version>1.19.7</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.esotericsoftware.yamlbeans</groupId>
             <artifactId>yamlbeans</artifactId>
-            <version>1.15</version>
+            <version>1.17</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp</artifactId>
-            <version>4.10.0</version>
+            <version>4.12.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -177,26 +176,26 @@
         <dependency>
             <groupId>io.confluent</groupId>
             <artifactId>kafka-avro-serializer</artifactId>
-            <version>7.2.2</version>
+            <version>7.9.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>2.13.4</version>
+            <version>2.17.0</version>
             <scope>test</scope>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.postgresql/postgresql -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.5.0</version>
+            <version>42.7.3</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
-            <version>2.0.9</version>
+            <version>2.0.13</version>
         </dependency>
     </dependencies>
 
@@ -213,7 +212,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.6</version>
+                <version>0.8.12</version>
                 <executions>
                     <execution>
                         <goals>
@@ -248,12 +247,12 @@
             </plugin>
             <plugin>
                 <artifactId>maven-release-plugin</artifactId>
-                <version>2.5.3</version>
+                <version>3.1.0</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.2.0</version>
+                <version>3.4.1</version>
                 <configuration>
                     <archive>
                         <manifest>
@@ -266,17 +265,17 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
+                <version>3.13.0</version>
                 <inherited>true</inherited>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>17</source>
+                    <target>17</target>
                 </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.2.0</version>
+                <version>3.7.1</version>
                 <configuration>
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
@@ -296,7 +295,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>2.22.2</version>
+                <version>3.2.5</version>
                 <configuration>
                     <skipITs>false</skipITs>
                     <includes>
@@ -325,19 +324,19 @@
                         <configuration>
                             <title>Record to JSON String Transformation</title>
                             <confluentControlCenterIntegration>false</confluentControlCenterIntegration>
-                            <documentationUrl>https://github.com/an0r0c/kafka-connect-transform-tojsonstring</documentationUrl>
-                            <sourceUrl>https://github.com/an0r0c/kafka-connect-transform-tojsonstring</sourceUrl>
+                            <documentationUrl>https://github.com/christian-edelsbrunner/kafka-connect-transform-tojsonstring</documentationUrl>
+                            <sourceUrl>https://github.com/christian-edelsbrunner/kafka-connect-transform-tojsonstring</sourceUrl>
                             <componentTypes>
                                 <componentType>transform</componentType>
                             </componentTypes>
-                            <ownerUsername>an0r0c</ownerUsername>
+                            <ownerUsername>christian-edelsbrunner</ownerUsername>
                             <ownerName>Christian Edelsbrunner</ownerName>
                             <ownerType>user</ownerType>
-                            <ownerUrl>https://github.com/an0r0c</ownerUrl>
+                            <ownerUrl>https://github.com/christian-edelsbrunner</ownerUrl>
                             <tags>
                                 <tag>Transform</tag>
                             </tags>
-                            <supportUrl>https://github.com/an0r0c/kafka-connect-transform-tojsonstring/issues
+                            <supportUrl>https://github.com/christian-edelsbrunner/kafka-connect-transform-tojsonstring/issues
                             </supportUrl>
                             <supportSummary>Support provided through open source community, bugs can be filed as github issues.
                             </supportSummary>
