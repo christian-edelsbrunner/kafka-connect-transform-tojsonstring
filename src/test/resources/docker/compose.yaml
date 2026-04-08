@@ -78,9 +78,7 @@ services:
         confluent-hub install --no-prompt confluentinc/kafka-connect-jdbc:10.5.4
         #
         echo "Launching Kafka Connect worker"
-        /etc/confluent/docker/run &
-        #
-        sleep infinity
+        /etc/confluent/docker/run
 
   postgres:
     image: postgres:16

@@ -94,10 +94,8 @@ public class Record2JsonStringIT {
                     .withExposedService(SCHEMA_REGISTRY +DEFAULT_COMPOSE_SERVICE_SUFFIX, SCHEMA_REGISTRY_PORT,
                             Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(120)))
                     .withExposedService(KAFKA_CONNECT+DEFAULT_COMPOSE_SERVICE_SUFFIX,KAFKA_CONNECT_PORT,
-                            Wait.forHttp("/connectors")
-                                    .forPort(KAFKA_CONNECT_PORT)
-                                    .forStatusCode(200)
-                                    .withStartupTimeout(Duration.ofSeconds(300)))
+                            Wait.forLogMessage(".*Kafka Connect started.*\\n", 1)
+                                    .withStartupTimeout(Duration.ofSeconds(600)))
                     .withExposedService(POSTGRES+DEFAULT_COMPOSE_SERVICE_SUFFIX,POSTGRES_PORT,
                             Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(120)))
 
