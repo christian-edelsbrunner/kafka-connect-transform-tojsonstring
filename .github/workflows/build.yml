@@ -18,6 +18,12 @@ jobs:
         run: |
           sudo echo "127.0.0.1 kafkabroker" | sudo tee -a /etc/hosts
           sudo echo "127.0.0.1 schemaregistry" | sudo tee -a /etc/hosts
+      - name: Create docker-compose compatibility shim
+        run: |
+          echo '#!/bin/bash' | sudo tee /usr/local/bin/docker-compose
+          echo 'exec docker compose "$@"' | sudo tee -a /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          docker-compose version
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
@@ -42,4 +48,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: mvn -B verify -DskipITs org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar

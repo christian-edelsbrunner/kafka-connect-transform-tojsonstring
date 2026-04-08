@@ -24,11 +24,9 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import org.junit.ClassRule;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.platform.runner.JUnitPlatform;
-import org.junit.runner.RunWith;
 import org.testcontainers.containers.DockerComposeContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
@@ -49,7 +47,6 @@ import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@RunWith(JUnitPlatform.class)
 public class Record2JsonStringIT {
 
     public static final String DOCKER_COMPOSE_FILE = "src/test/resources/docker/compose.yaml";
@@ -88,8 +85,7 @@ public class Record2JsonStringIT {
         }
     }
 
-    @ClassRule
-    public static DockerComposeContainer CONTAINER_ENV =
+    public static final DockerComposeContainer CONTAINER_ENV =
             new DockerComposeContainer(new File(DOCKER_COMPOSE_FILE))
                     .withOptions("--compatibility")
                     .withLocalCompose(true)
@@ -112,6 +108,13 @@ public class Record2JsonStringIT {
 
         registerJDBCSinkConnector(config);
 
+    }
+
+    @AfterAll
+    public static void teardown() {
+        if (CONTAINER_ENV != null) {
+            CONTAINER_ENV.stop();
+        }
     }
 
     @Test
