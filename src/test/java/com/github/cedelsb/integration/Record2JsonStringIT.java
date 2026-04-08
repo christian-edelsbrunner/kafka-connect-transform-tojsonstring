@@ -89,11 +89,17 @@ public class Record2JsonStringIT {
             new DockerComposeContainer(new File(DOCKER_COMPOSE_FILE))
                     .withOptions("--compatibility")
                     .withLocalCompose(true)
-                    .withExposedService(KAFKA_BROKER+DEFAULT_COMPOSE_SERVICE_SUFFIX,KAFKA_BROKER_PORT)
-                    .withExposedService(KAFKA_CONNECT+DEFAULT_COMPOSE_SERVICE_SUFFIX,KAFKA_CONNECT_PORT,
+                    .withExposedService(KAFKA_BROKER+DEFAULT_COMPOSE_SERVICE_SUFFIX,KAFKA_BROKER_PORT,
                             Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(120)))
-                    .withExposedService(SCHEMA_REGISTRY +DEFAULT_COMPOSE_SERVICE_SUFFIX, SCHEMA_REGISTRY_PORT)
-                    .withExposedService(POSTGRES+DEFAULT_COMPOSE_SERVICE_SUFFIX,POSTGRES_PORT)
+                    .withExposedService(SCHEMA_REGISTRY +DEFAULT_COMPOSE_SERVICE_SUFFIX, SCHEMA_REGISTRY_PORT,
+                            Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(120)))
+                    .withExposedService(KAFKA_CONNECT+DEFAULT_COMPOSE_SERVICE_SUFFIX,KAFKA_CONNECT_PORT,
+                            Wait.forHttp("/connectors")
+                                    .forPort(KAFKA_CONNECT_PORT)
+                                    .forStatusCode(200)
+                                    .withStartupTimeout(Duration.ofSeconds(300)))
+                    .withExposedService(POSTGRES+DEFAULT_COMPOSE_SERVICE_SUFFIX,POSTGRES_PORT,
+                            Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(120)))
 
             ;
 

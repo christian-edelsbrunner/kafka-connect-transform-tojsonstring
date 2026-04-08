@@ -38,5 +38,13 @@ jobs:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
+      - name: Pre-pull Docker images for integration tests
+        run: |
+          docker pull confluentinc/cp-zookeeper:7.2.2 &
+          docker pull confluentinc/cp-kafka:7.2.2 &
+          docker pull confluentinc/cp-schema-registry:7.2.2 &
+          docker pull confluentinc/cp-kafka-connect:7.2.2 &
+          docker pull postgres:16 &
+          wait
       - name: Build and verify
         run: mvn -B verify
